@@ -220,14 +220,14 @@ function dosyaPath() {
   return '/me/drive/root:' + p + ':/workbook';
 }
 function sheetAdi() {
-  return encodeURIComponent(document.getElementById('sheet-name').value.trim() || 'Sayfa1');
+  return document.getElementById('sheet-name').value.trim() || 'Sayfa1';
 }
 
 async function veriOku() {
   log('Excel okunuyor...');
   document.getElementById('tablo-ici').innerHTML = '<div class="empty-msg">⏳ Yükleniyor...</div>';
   try {
-    const data = await msGraph('GET', dosyaPath() + '/sheets/' + sheetAdi() + '/usedRange');
+    const data = await msGraph('GET', dosyaPath() + '/worksheets/' + sheetAdi() + '/usedRange');
     const values = data.values || [];
     satirSayisi = values.length;
     log(values.length + ' satır okundu');
@@ -267,7 +267,7 @@ async function satirEkle() {
   try {
     const nextRow = satirSayisi + 1;
     const range = 'A' + nextRow + ':B' + nextRow;
-    await msGraph('PATCH', dosyaPath() + '/sheets/' + sheetAdi() + '/range(address=\'' + range + '\')', {
+    await msGraph('PATCH', dosyaPath() + '/worksheets/' + sheetAdi() + '/range(address=\'' + range + '\')', {
       values: [[a, b]]
     });
     log('✓ Eklendi → Satır ' + nextRow);
