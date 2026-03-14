@@ -72,7 +72,7 @@ input[type=number]{font-size:16px;font-weight:bold}
 
 <div class="topbar">
   <div>
-    <div class="logo">BEY Stok <span style="font-size:11px;opacity:.6;font-weight:normal;">v1.1.0</span></div>
+    <div class="logo">BEY Stok <span style="font-size:11px;opacity:.6;font-weight:normal;">v1.2.0</span></div>
     <div class="sub">Hareket Takip Sistemi</div>
   </div>
   <span class="badge no" id="topBadge">Bağlı Değil</span>
@@ -290,22 +290,21 @@ function kameraKapat() {
 
 async function taramaBaslat() {
   try {
-    const hints = new Map();
-    hints.set(ZXing.DecodeHintType.TRY_HARDER, true);
-    zxingReader = new ZXing.BrowserMultiFormatReader(hints);
+    zxingReader = new ZXing.BrowserMultiFormatReader();
     log('ZXing hazır, kamera seçiliyor...');
 
-    const devices = await ZXing.BrowserCodeReader.listVideoInputDevices();
-    // Arka kamera tercih et
+    const devices = await zxingReader.listVideoInputDevices();
     let deviceId = undefined;
-    const arkaKamera = devices.find(d =>
-      d.label.toLowerCase().includes('back') ||
-      d.label.toLowerCase().includes('arka') ||
-      d.label.toLowerCase().includes('rear') ||
-      d.label.toLowerCase().includes('environment')
-    );
-    if (arkaKamera) deviceId = arkaKamera.deviceId;
-    else if (devices.length > 0) deviceId = devices[devices.length - 1].deviceId;
+    if (devices && devices.length > 0) {
+      const arkaKamera = devices.find(d =>
+        d.label.toLowerCase().includes('back') ||
+        d.label.toLowerCase().includes('arka') ||
+        d.label.toLowerCase().includes('rear') ||
+        d.label.toLowerCase().includes('environment')
+      );
+      deviceId = arkaKamera ? arkaKamera.deviceId : devices[devices.length - 1].deviceId;
+      log('Kamera: ' + (arkaKamera ? arkaKamera.label : devices[devices.length-1].label));
+    }
 
     log('Kamera açıldı, QR bekleniyor...');
 
