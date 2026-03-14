@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>BEY Stok Hareket</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jsQR/1.4.0/jsQR.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@zxing/library@0.19.1/umd/index.min.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:Arial,sans-serif;background:#f0f2f5;min-height:100vh}
@@ -72,7 +72,7 @@ input[type=number]{font-size:16px;font-weight:bold}
 
 <div class="topbar">
   <div>
-    <div class="logo">BEY Stok</div>
+    <div class="logo">BEY Stok <span style="font-size:11px;opacity:.6;font-weight:normal;">v1.1.0</span></div>
     <div class="sub">Hareket Takip Sistemi</div>
   </div>
   <span class="badge no" id="topBadge">Bağlı Değil</span>
@@ -173,6 +173,7 @@ const ALT_ISLEMLER = {
 // ─── DURUM ─────────────────────────────────────────────
 let msalApp = null, account = null, accessToken = null;
 let kameraActik = false, animFrame = null, stream = null;
+let zxingReader = null;
 let secilenUrun = null, secilenIslem = null, secilenAltIslem = null;
 let sonIslemler = [];
 let stokSatirSayisi = 1;
@@ -264,56 +265,66 @@ function parseBeyQR(kod) {
 async function kameraToggle() {
   if (kameraActik) { kameraKapat(); return; }
   try {
-    stream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: 'environment', width:{ideal:1920}, height:{ideal:1080}, frameRate:{ideal:30} }
-    });
-    const video = document.getElementById('video');
-    video.srcObject = stream;
-    await video.play();
     document.getElementById('kameraBox').style.display = 'block';
     document.getElementById('kameraBtn').textContent = '⏹ Kamerayı Kapat';
     kameraActik = true;
+    log('Kamera başlatılıyor...');
     taramaBaslat();
-    log('Kamera açıldı');
   } catch(e) {
     log('Kamera hatası: ' + e.message);
-    showAlert('kamerahata', 'Kamera açılamadı: ' + e.message, 'err');
+    kameraActik = false;
   }
 }
 
 function kameraKapat() {
-  if (stream) stream.getTracks().forEach(t => t.stop());
-  if (animFrame) cancelAnimationFrame(animFrame);
+  if (zxingReader) {
+    try { zxingReader.reset(); } catch(e) {}
+    zxingReader = null;
+  }
+  if (stream) { stream.getTracks().forEach(t => t.stop()); stream = null; }
   document.getElementById('kameraBox').style.display = 'none';
   document.getElementById('kameraBtn').textContent = '📷 Kamerayı Aç';
   kameraActik = false;
   log('Kamera kapatıldı');
 }
 
-function taramaBaslat() {
-  const video = document.getElementById('video');
-  const canvas = document.getElementById('canvas');
-  const ctx = canvas.getContext('2d');
+async function taramaBaslat() {
+  try {
+    const hints = new Map();
+    hints.set(ZXing.DecodeHintType.TRY_HARDER, true);
+    zxingReader = new ZXing.BrowserMultiFormatReader(hints);
+    log('ZXing hazır, kamera seçiliyor...');
 
-  function tara() {
-    if (!kameraActik) return;
-    if (video.readyState === video.HAVE_ENOUGH_DATA) {
-      // Küçük canvas ile işle - jsQR için 400px yeterli
-      const W = 400, H = 400;
-      canvas.width = W; canvas.height = H;
-      ctx.drawImage(video, 0, 0, W, H);
-      const img = ctx.getImageData(0, 0, W, H);
-      const qr = jsQR(img.data, img.width, img.height, { inversionAttempts: 'attemptBoth' });
-      if (qr?.data) {
-        log('QR okundu: ' + qr.data);
+    const devices = await ZXing.BrowserCodeReader.listVideoInputDevices();
+    // Arka kamera tercih et
+    let deviceId = undefined;
+    const arkaKamera = devices.find(d =>
+      d.label.toLowerCase().includes('back') ||
+      d.label.toLowerCase().includes('arka') ||
+      d.label.toLowerCase().includes('rear') ||
+      d.label.toLowerCase().includes('environment')
+    );
+    if (arkaKamera) deviceId = arkaKamera.deviceId;
+    else if (devices.length > 0) deviceId = devices[devices.length - 1].deviceId;
+
+    log('Kamera açıldı, QR bekleniyor...');
+
+    await zxingReader.decodeFromVideoDevice(deviceId, 'video', (result, err) => {
+      if (result) {
+        const kod = result.getText();
+        log('QR okundu: ' + kod);
         kameraKapat();
-        qrIslendi(qr.data);
-        return;
+        qrIslendi(kod);
       }
-    }
-    setTimeout(() => { animFrame = requestAnimationFrame(tara); }, 100);
+    });
+
+    stream = document.getElementById('video').srcObject;
+  } catch(e) {
+    log('Tarama hatası: ' + e.message);
+    kameraActik = false;
+    document.getElementById('kameraBox').style.display = 'none';
+    document.getElementById('kameraBtn').textContent = '📷 Kamerayı Aç';
   }
-  animFrame = requestAnimationFrame(tara);
 }
 
 // ─── QR İŞLEME ─────────────────────────────────────────
