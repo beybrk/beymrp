@@ -265,7 +265,7 @@ async function kameraToggle() {
   if (kameraActik) { kameraKapat(); return; }
   try {
     stream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: 'environment', width:{ideal:1280}, height:{ideal:720} }
+      video: { facingMode: 'environment', width:{ideal:1920}, height:{ideal:1080}, frameRate:{ideal:30} }
     });
     const video = document.getElementById('video');
     video.srcObject = stream;
@@ -302,7 +302,7 @@ function taramaBaslat() {
       canvas.height = video.videoHeight;
       ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
       const img = ctx.getImageData(0, 0, canvas.width, canvas.height);
-      const qr = jsQR(img.data, img.width, img.height, { inversionAttempts: 'dontInvert' });
+      const qr = jsQR(img.data, img.width, img.height, { inversionAttempts: 'attemptBoth' });
       if (qr?.data) {
         log('QR okundu: ' + qr.data);
         kameraKapat();
